@@ -2,7 +2,7 @@ package kubernetes
 
 import (
 	"github.com/coredns/coredns/plugin"
-	"github.com/coredns/coredns/plugin/kubernetes/object"
+	"github.com/metalkube/coredns-machine-kubernetes/object"
 	"github.com/coredns/coredns/request"
 )
 
