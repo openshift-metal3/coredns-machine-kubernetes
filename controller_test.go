@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/coredns/coredns/plugin/test"
-
 	"github.com/miekg/dns"
+	clusterfake "github.com/openshift/cluster-api/pkg/client/clientset_generated/clientset/fake"
 	api "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -26,10 +26,12 @@ func inc(ip net.IP) {
 
 func BenchmarkController(b *testing.B) {
 	client := fake.NewSimpleClientset()
+	clusterclient := clusterfake.NewSimpleClientset()
+
 	dco := dnsControlOpts{
 		zones: []string{"cluster.local."},
 	}
-	controller := newdnsController(client, dco)
+	controller := newdnsController(client, clusterclient, dco)
 	cidr := "10.0.0.0/19"
 
 	// Add resources

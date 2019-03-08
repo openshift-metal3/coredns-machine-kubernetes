@@ -16,6 +16,7 @@ import (
 	"github.com/coredns/coredns/request"
 
 	"github.com/miekg/dns"
+	clusterclient "github.com/openshift/cluster-api/pkg/client/clientset_generated/clientset"
 	api "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -40,6 +41,7 @@ type Kubernetes struct {
 	Namespaces       map[string]struct{}
 	podMode          string
 	endpointNameMode bool
+	machineCluster   string
 	Fall             fall.F
 	ttl              uint32
 	opts             dnsControlOpts
@@ -218,18 +220,25 @@ func (k *Kubernetes) InitKubeCache() (err error) {
 		k.opts.selector = selector
 	}
 
+	clusterClient, err := clusterclient.NewForConfig(config)
+	if err != nil {
+		return fmt.Errorf("failed to create cluster notification controller: %q", err)
+	}
+
 	k.opts.initPodCache = k.podMode == podModeVerified
+	log.Infof("k.machineCluster == %s", k.machineCluster)
+	k.opts.initMachineCache = len(k.machineCluster) > 0
 
 	k.opts.zones = k.Zones
 	k.opts.endpointNameMode = k.endpointNameMode
-	k.APIConn = newdnsController(kubeClient, k.opts)
+	k.APIConn = newdnsController(kubeClient, clusterClient, k.opts)
 
 	return err
 }
 
 // Records looks up services in kubernetes.
 func (k *Kubernetes) Records(state request.Request, exact bool) ([]msg.Service, error) {
-	r, e := parseRequest(state)
+	r, e := parseRequest(state, k)
 	if e != nil {
 		return nil, e
 	}
@@ -250,8 +259,13 @@ func (k *Kubernetes) Records(state request.Request, exact bool) ([]msg.Service, 
 		return pods, err
 	}
 
-	services, err := k.findServices(r, state.Zone)
-	return services, err
+	if r.podOrSvc == Svc {
+		services, err := k.findServices(r, state.Zone)
+		return services, err
+	}
+
+	machines, err := k.findMachines(r, state.Zone)
+	return machines, err
 }
 
 // serviceFQDN returns the k8s cluster dns spec service FQDN for the service (or endpoint) object.
@@ -493,6 +507,43 @@ func (k *Kubernetes) findServices(r recordRequest, zone string) (services []msg.
 		}
 	}
 	return services, err
+}
+
+// findMachines returns the machines matching r from the cache.
+func (k *Kubernetes) findMachines(r recordRequest, zone string) (machines []msg.Service, err error) {
+	log.Infof("findMachines called: %s: %v", zone, r)
+	if len(k.machineCluster) == 0 {
+		return nil, errNoItems
+	}
+
+	hostname := r.namespace
+	clusterName := r.podOrSvc
+	zonePath := msg.Path(zone, coredns)
+
+	// handle empty pod name
+	if hostname == "" {
+		// NXDOMAIN
+		return nil, errNoItems
+	}
+
+	err = errNoItems
+
+	for _, m := range k.APIConn.MachineList() {
+		// exclude machines in the process of termination
+		if m.Deleting {
+			continue
+		}
+
+		// check for matching hostname and namespace
+		if strings.HasSuffix(m.Name, hostname) {
+			s := msg.Service{Key: strings.Join([]string{zonePath, clusterName, hostname}, "/"), Host: m.MachineIP, TTL: k.ttl}
+			machines = append(machines, s)
+
+			err = nil
+		}
+	}
+
+	return machines, err
 }
 
 // match checks if a and b are equal taking wildcards into account.

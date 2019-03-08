@@ -9,6 +9,8 @@ import (
 
 	"github.com/coredns/coredns/plugin/kubernetes/object"
 
+	machineapi "github.com/openshift/cluster-api/pkg/apis/machine/v1beta1"
+	clusterclient "github.com/openshift/cluster-api/pkg/client/clientset_generated/clientset"
 	api "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -23,6 +25,8 @@ const (
 	svcIPIndex            = "ServiceIP"
 	epNameNamespaceIndex  = "EndpointNameNamespace"
 	epIPIndex             = "EndpointsIP"
+	machineNameIndex      = "MachineName"
+	machineIPIndex        = "MachineIP"
 )
 
 type dnsController interface {
@@ -33,6 +37,9 @@ type dnsController interface {
 	PodIndex(string) []*object.Pod
 	EpIndex(string) []*object.Endpoints
 	EpIndexReverse(string) []*object.Endpoints
+	MachineList() []*object.Machine
+	MachineIndex(string) []*object.Machine
+	MachineIndexReverse(string) []*object.Machine
 
 	GetNodeByName(string) (*api.Node, error)
 	GetNamespaceByName(string) (*api.Namespace, error)
@@ -51,19 +58,22 @@ type dnsControl struct {
 	// aligned ( we use sync.LoadAtomic with this )
 	modified int64
 
-	client kubernetes.Interface
+	client        kubernetes.Interface
+	clusterclient clusterclient.Interface
 
 	selector labels.Selector
 
-	svcController cache.Controller
-	podController cache.Controller
-	epController  cache.Controller
-	nsController  cache.Controller
+	svcController     cache.Controller
+	podController     cache.Controller
+	epController      cache.Controller
+	machineController cache.Controller
+	nsController      cache.Controller
 
-	svcLister cache.Indexer
-	podLister cache.Indexer
-	epLister  cache.Indexer
-	nsLister  cache.Store
+	svcLister     cache.Indexer
+	podLister     cache.Indexer
+	epLister      cache.Indexer
+	machineLister cache.Indexer
+	nsLister      cache.Store
 
 	// stopLock is used to enforce only a single call to Stop is active.
 	// Needed because we allow stopping through an http endpoint and
@@ -79,6 +89,7 @@ type dnsControl struct {
 type dnsControlOpts struct {
 	initPodCache       bool
 	initEndpointsCache bool
+	initMachineCache   bool
 	resyncPeriod       time.Duration
 	ignoreEmptyService bool
 	// Label handling.
@@ -90,9 +101,10 @@ type dnsControlOpts struct {
 }
 
 // newDNSController creates a controller for CoreDNS.
-func newdnsController(kubeClient kubernetes.Interface, opts dnsControlOpts) *dnsControl {
+func newdnsController(kubeClient kubernetes.Interface, clusterClient clusterclient.Interface, opts dnsControlOpts) *dnsControl {
 	dns := dnsControl{
 		client:           kubeClient,
+		clusterclient:    clusterClient,
 		selector:         opts.selector,
 		stopCh:           make(chan struct{}),
 		zones:            opts.zones,
@@ -138,6 +150,20 @@ func newdnsController(kubeClient kubernetes.Interface, opts dnsControlOpts) *dns
 			object.ToEndpoints)
 	}
 
+	if opts.initMachineCache {
+		dns.machineLister, dns.machineController = object.NewIndexerInformer(
+			&cache.ListWatch{
+				ListFunc:  machineListFunc(dns.clusterclient, api.NamespaceAll, dns.selector),
+				WatchFunc: machineWatchFunc(dns.clusterclient, api.NamespaceAll, dns.selector),
+			},
+			&machineapi.Machine{},
+			opts.resyncPeriod,
+			cache.ResourceEventHandlerFuncs{},
+			cache.Indexers{machineNameIndex: machineNameIndexFunc, machineIPIndex: machineIPIndexFunc},
+			object.ToMachine,
+		)
+	}
+
 	dns.nsLister, dns.nsController = cache.NewInformer(
 		&cache.ListWatch{
 			ListFunc:  namespaceListFunc(dns.client, dns.selector),
@@ -166,6 +192,22 @@ func svcIPIndexFunc(obj interface{}) ([]string, error) {
 	}
 
 	return append([]string{svc.ClusterIP}, svc.ExternalIPs...), nil
+}
+
+func machineIPIndexFunc(obj interface{}) ([]string, error) {
+	m, ok := obj.(*object.Machine)
+	if !ok {
+		return nil, errObj
+	}
+	return []string{m.MachineIP}, nil
+}
+
+func machineNameIndexFunc(obj interface{}) ([]string, error) {
+	m, ok := obj.(*object.Machine)
+	if !ok {
+		return nil, errObj
+	}
+	return []string{m.Name}, nil
 }
 
 func svcNameNamespaceIndexFunc(obj interface{}) ([]string, error) {
@@ -232,6 +274,21 @@ func namespaceListFunc(c kubernetes.Interface, s labels.Selector) func(meta.List
 	}
 }
 
+func machineListFunc(c clusterclient.Interface, ns string, s labels.Selector) func(meta.ListOptions) (runtime.Object, error) {
+	return func(opts meta.ListOptions) (runtime.Object, error) {
+		if s != nil {
+			opts.LabelSelector = s.String()
+		}
+
+		log.Infof("opts: %v", opts)
+		listV1, err := c.MachineV1beta1().Machines(ns).List(opts)
+		for _, m := range listV1.Items {
+			log.Infof("Machine: %v", m.Name)
+		}
+		return listV1, err
+	}
+}
+
 // Stop stops the  controller.
 func (dns *dnsControl) Stop() error {
 	dns.stopLock.Lock()
@@ -257,6 +314,9 @@ func (dns *dnsControl) Run() {
 	if dns.podController != nil {
 		go dns.podController.Run(dns.stopCh)
 	}
+	if dns.machineController != nil {
+		go dns.machineController.Run(dns.stopCh)
+	}
 	go dns.nsController.Run(dns.stopCh)
 	<-dns.stopCh
 }
@@ -273,7 +333,11 @@ func (dns *dnsControl) HasSynced() bool {
 		c = dns.podController.HasSynced()
 	}
 	d := dns.nsController.HasSynced()
-	return a && b && c && d
+	e := true
+	if dns.machineController != nil {
+		e = dns.machineController.HasSynced()
+	}
+	return a && b && c && d && e
 }
 
 func (dns *dnsControl) ServiceList() (svcs []*object.Service) {
@@ -298,6 +362,18 @@ func (dns *dnsControl) EndpointsList() (eps []*object.Endpoints) {
 		eps = append(eps, ep)
 	}
 	return eps
+}
+
+func (dns *dnsControl) MachineList() (mchs []*object.Machine) {
+	os := dns.machineLister.List()
+	for _, o := range os {
+		m, ok := o.(*object.Machine)
+		if !ok {
+			continue
+		}
+		mchs = append(mchs, m)
+	}
+	return mchs
 }
 
 func (dns *dnsControl) PodIndex(ip string) (pods []*object.Pod) {
@@ -328,6 +404,37 @@ func (dns *dnsControl) SvcIndex(idx string) (svcs []*object.Service) {
 		svcs = append(svcs, s)
 	}
 	return svcs
+}
+
+func (dns *dnsControl) MachineIndex(idx string) (machines []*object.Machine) {
+	os, err := dns.machineLister.ByIndex(machineNameIndex, idx)
+	if err != nil {
+		return nil
+	}
+	for _, o := range os {
+		m, ok := o.(*object.Machine)
+		if !ok {
+			continue
+		}
+		machines = append(machines, m)
+	}
+	return machines
+}
+
+func (dns *dnsControl) MachineIndexReverse(ip string) (mchs []*object.Machine) {
+	os, err := dns.machineLister.ByIndex(machineIPIndex, ip)
+	if err != nil {
+		return nil
+	}
+
+	for _, o := range os {
+		m, ok := o.(*object.Machine)
+		if !ok {
+			continue
+		}
+		mchs = append(mchs, m)
+	}
+	return mchs
 }
 
 func (dns *dnsControl) SvcIndexReverse(ip string) (svcs []*object.Service) {

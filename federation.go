@@ -31,7 +31,7 @@ func (k *Kubernetes) Federations(state request.Request, fname, fzone string) (ms
 	if err != nil {
 		return msg.Service{}, err
 	}
-	r, err := parseRequest(state)
+	r, err := parseRequest(state, k)
 	if err != nil {
 		return msg.Service{}, err
 	}

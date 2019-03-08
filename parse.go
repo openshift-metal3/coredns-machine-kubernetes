@@ -26,7 +26,7 @@ type recordRequest struct {
 // parseRequest parses the qname to find all the elements we need for querying k8s. Anything
 // that is not parsed will have the wildcard "*" value (except r.endpoint).
 // Potential underscores are stripped from _port and _protocol.
-func parseRequest(state request.Request) (r recordRequest, err error) {
+func parseRequest(state request.Request, k *Kubernetes) (r recordRequest, err error) {
 	// 3 Possible cases:
 	// 1. _port._protocol.service.namespace.pod|svc.zone
 	// 2. (endpoint): endpoint.service.namespace.pod|svc.zone
@@ -58,7 +58,7 @@ func parseRequest(state request.Request) (r recordRequest, err error) {
 		return r, nil
 	}
 	r.podOrSvc = segs[last]
-	if r.podOrSvc != Pod && r.podOrSvc != Svc {
+	if r.podOrSvc != Pod && r.podOrSvc != Svc && r.podOrSvc != k.machineCluster {
 		return r, errInvalidRequest
 	}
 	last--

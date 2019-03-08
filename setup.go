@@ -198,6 +198,14 @@ func ParseStanza(c *caddy.Controller) (*Kubernetes, error) {
 				continue
 			}
 			return nil, c.ArgErr()
+		case "machines":
+			log.Info("machines config read")
+			args := c.RemainingArgs()
+			if len(args) == 1 {
+				k8s.machineCluster = args[0]
+				continue
+			}
+			return nil, c.ArgErr()
 		case "endpoint":
 			args := c.RemainingArgs()
 			if len(args) > 0 {

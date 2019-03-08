@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	clusterclient "github.com/openshift/cluster-api/pkg/client/clientset_generated/clientset"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/watch"
@@ -43,6 +44,16 @@ func namespaceWatchFunc(c kubernetes.Interface, s labels.Selector) func(options 
 			options.LabelSelector = s.String()
 		}
 		w, err := c.CoreV1().Namespaces().Watch(options)
+		return w, err
+	}
+}
+
+func machineWatchFunc(c clusterclient.Interface, ns string, s labels.Selector) func(options meta.ListOptions) (watch.Interface, error) {
+	return func(options meta.ListOptions) (watch.Interface, error) {
+		if s != nil {
+			options.LabelSelector = s.String()
+		}
+		w, err := c.MachineV1beta1().Machines(ns).Watch(options)
 		return w, err
 	}
 }
