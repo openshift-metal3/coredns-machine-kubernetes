@@ -1,8 +1,8 @@
-# kubernetes
+# machinekubernetes
 
 ## Name
 
-*kubernetes* - enables the reading zone data from a Kubernetes cluster.
+*machinekubernetes* - enables the reading zone data from a Kubernetes cluster.
 
 ## Description
 
@@ -21,16 +21,16 @@ This plugin can only be used once per Server Block.
 ## Syntax
 
 ~~~
-kubernetes [ZONES...]
+machinekubernetes [ZONES...]
 ~~~
 
-With only the directive specified, the *kubernetes* plugin will default to the zone specified in
+With only the directive specified, the *machinekubernetes* plugin will default to the zone specified in
 the server's block. It will handle all queries in that zone and connect to Kubernetes in-cluster. It
 will not provide PTR records for services or A records for pods. If **ZONES** is used it specifies
 all the zones the plugin should be authoritative for.
 
 ```
-kubernetes [ZONES...] {
+machinekubernetes [ZONES...] {
     resyncperiod DURATION
     endpoint URL
     tls CERT KEY CACERT
@@ -115,7 +115,7 @@ requests. Resolve upstream records against `10.102.3.10`. Note we show the entir
 
 ~~~ txt
 10.0.0.0/17 cluster.local {
-    kubernetes {
+    machinekubernetes {
         pods verified
         upstream 10.102.3.10:53
     }
@@ -125,7 +125,7 @@ requests. Resolve upstream records against `10.102.3.10`. Note we show the entir
 Or you can selectively expose some namespaces:
 
 ~~~ txt
-kubernetes cluster.local {
+machinekubernetes cluster.local {
     namespaces test staging
 }
 ~~~
@@ -133,7 +133,7 @@ kubernetes cluster.local {
 Connect to Kubernetes with CoreDNS running outside the cluster:
 
 ~~~ txt
-kubernetes cluster.local {
+machinekubernetes cluster.local {
     endpoint https://k8s-endpoint:8443
     tls cert key cacert
 }
@@ -142,13 +142,13 @@ kubernetes cluster.local {
 ## stubDomains and upstreamNameservers
 
 Here we use the *forward* plugin to implement a stubDomain that forwards `example.local` to the nameserver `10.100.0.10:53`.
-The *upstream* option in the *kubernetes* plugin means that ExternalName services (CNAMEs) will be resolved using the respective proxy.
+The *upstream* option in the *machinekubernetes* plugin means that ExternalName services (CNAMEs) will be resolved using the respective proxy.
 Also configured is an upstreamNameserver `8.8.8.8:53` that will be used for resolving names that do not fall in `cluster.local`
 or `example.local`.
 
 ~~~ txt
 cluster.local:53 {
-    kubernetes cluster.local {
+    machinekubernetes cluster.local {
         upstream
     }
 }
@@ -172,20 +172,20 @@ upstreamNameservers: |
 
 ## AutoPath
 
-The *kubernetes* plugin can be used in conjunction with the *autopath* plugin.  Using this
+The *machinekubernetes* plugin can be used in conjunction with the *autopath* plugin.  Using this
 feature enables server-side domain search path completion in Kubernetes clusters.  Note: `pods` must
 be set to `verified` for this to function properly.
 
     cluster.local {
         autopath @kubernetes
-        kubernetes {
+        machinekubernetes {
             pods verified
         }
     }
 
 ## Federation
 
-The *kubernetes* plugin can be used in conjunction with the *federation* plugin.  Using this
+The *machinekubernetes* plugin can be used in conjunction with the *federation* plugin.  Using this
 feature enables serving federated domains from the Kubernetes clusters.
 
     cluster.local {
@@ -193,7 +193,7 @@ feature enables serving federated domains from the Kubernetes clusters.
             prod prod.example.org
             staging staging.example.org
         }
-        kubernetes
+        machinekubernetes
     }
 
 
