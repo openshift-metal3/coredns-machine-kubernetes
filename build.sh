@@ -23,8 +23,9 @@ else
 
     pushd /go/src/github.com/coredns/coredns
     git reset --hard HEAD
-    git checkout master
     git clean -f
+    git checkout master
+    git pull
 
     sed -i -e "/^kubernetes:kubernetes$/i machinekubernetes:github.com/metalkube/coredns-machine-kubernetes" plugin.cfg
 
