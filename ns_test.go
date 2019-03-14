@@ -3,7 +3,7 @@ package kubernetes
 import (
 	"testing"
 
-	"github.com/metalkube/coredns-machine-kubernetes/object"
+	"github.com/openshift-metalkube/coredns-machine-kubernetes/object"
 
 	api "k8s.io/api/core/v1"
 )

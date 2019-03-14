@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/coredns/coredns/plugin"
-	"github.com/metalkube/coredns-machine-kubernetes/object"
+	"github.com/openshift-metalkube/coredns-machine-kubernetes/object"
 	"github.com/coredns/coredns/request"
 
 	"github.com/miekg/dns"
