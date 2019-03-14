@@ -6,7 +6,7 @@ index 239b4cec..533a5ea1 100644
  )
  
  replace github.com/DataDog/dd-trace-go v0.6.1 => github.com/datadog/dd-trace-go v0.6.1
-+replace github.com/metalkube/coredns-machine-kubernetes => /go/src/github.com/metalkube/coredns-machine-kubernetes/
++replace github.com/openshift-metalkube/coredns-machine-kubernetes => /go/src/github.com/openshift-metalkube/coredns-machine-kubernetes/
 diff --git a/plugin.cfg b/plugin.cfg
 index a9450d50..fc4a8886 100644
 --- a/plugin.cfg
@@ -15,7 +15,7 @@ index a9450d50..fc4a8886 100644
  chaos:chaos
  loadbalance:loadbalance
  cache:cache
-+machinekubernetes:github.com/metalkube/coredns-machine-kubernetes
++machinekubernetes:github.com/openshift-metalkube/coredns-machine-kubernetes
  rewrite:rewrite
  dnssec:dnssec
  autopath:autopath

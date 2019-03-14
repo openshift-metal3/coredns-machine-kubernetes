@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/metalkube/coredns-machine-kubernetes/object"
+	"github.com/openshift-metalkube/coredns-machine-kubernetes/object"
 
 	machineapi "github.com/openshift/cluster-api/pkg/apis/machine/v1beta1"
 	clusterclient "github.com/openshift/cluster-api/pkg/client/clientset_generated/clientset"
