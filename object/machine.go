@@ -28,11 +28,15 @@ func ToMachine(obj interface{}) interface{} {
 
 	m := &Machine{
 		Version:     machine.GetResourceVersion(),
-		MachineIP:   machine.Status.Addresses[0].Address,
 		Name:        machine.ObjectMeta.GetName(),
 		Namespace:   machine.GetNamespace(),
 		ClusterName: machine.ObjectMeta.GetClusterName(),
 	}
+
+	if len(machine.Status.Addresses) > 0 {
+		m.MachineIP = machine.Status.Addresses[0].Address
+	}
+
 	t := machine.ObjectMeta.DeletionTimestamp
 	if t != nil {
 		m.Deleting = !(*t).Time.IsZero()
