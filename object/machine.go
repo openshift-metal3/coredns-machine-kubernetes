@@ -9,6 +9,7 @@ import (
 type Machine struct {
 	Version     string
 	MachineIP   string
+	MachineName string
 	Name        string
 	Namespace   string
 	ClusterName string
@@ -33,8 +34,13 @@ func ToMachine(obj interface{}) interface{} {
 		ClusterName: machine.ObjectMeta.GetClusterName(),
 	}
 
-	if len(machine.Status.Addresses) > 0 {
-		m.MachineIP = machine.Status.Addresses[0].Address
+	for _, addr := range machine.Status.Addresses {
+		if addr.Type == "InternalIP" {
+			m.MachineIP = addr.Address
+		}
+		if addr.Type == "Hostname" {
+			m.MachineName = addr.Address
+		}
 	}
 
 	t := machine.ObjectMeta.DeletionTimestamp
@@ -52,6 +58,7 @@ func (m *Machine) DeepCopyObject() runtime.Object {
 	m1 := &Machine{
 		Version:     m.Version,
 		MachineIP:   m.MachineIP,
+		MachineName: m.MachineName,
 		Name:        m.Name,
 		Namespace:   m.Namespace,
 		ClusterName: m.ClusterName,
