@@ -1,4 +1,4 @@
-module github.com/openshift-metalkube/coredns-machine-kubernetes
+module github.com/openshift-metal3/coredns-machine-kubernetes
 
 require (
 	github.com/coredns/coredns v1.4.0

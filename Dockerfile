@@ -1,9 +1,9 @@
 FROM registry.svc.ci.openshift.org/openshift/release:golang-1.11 AS builder
-WORKDIR /go/src/github.com/openshift-metalkube/coredns-machine-kubernetes
+WORKDIR /go/src/github.com/openshift-metal3/coredns-machine-kubernetes
 COPY . .
 RUN git clone https://github.com/coredns/coredns /go/src/github.com/coredns/coredns
 WORKDIR /go/src/github.com/coredns/coredns
-RUN git apply /go/src/github.com/openshift-metalkube/coredns-machine-kubernetes/containerization/machinekubernetes.patch
+RUN git apply /go/src/github.com/openshift-metal3/coredns-machine-kubernetes/containerization/machinekubernetes.patch
 RUN make
 
 FROM registry.svc.ci.openshift.org/openshift/origin-v4.0:base

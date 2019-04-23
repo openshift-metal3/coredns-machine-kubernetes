@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/coredns/coredns/plugin"
-	"github.com/openshift-metalkube/coredns-machine-kubernetes/object"
 	"github.com/coredns/coredns/request"
+	"github.com/openshift-metal3/coredns-machine-kubernetes/object"
 
 	"github.com/miekg/dns"
 	api "k8s.io/api/core/v1"

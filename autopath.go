@@ -2,8 +2,8 @@ package kubernetes
 
 import (
 	"github.com/coredns/coredns/plugin"
-	"github.com/openshift-metalkube/coredns-machine-kubernetes/object"
 	"github.com/coredns/coredns/request"
+	"github.com/openshift-metal3/coredns-machine-kubernetes/object"
 )
 
 // AutoPath implements the AutoPathFunc call from the autopath plugin.

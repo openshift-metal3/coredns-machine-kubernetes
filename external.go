@@ -4,9 +4,9 @@ import (
 	"strings"
 
 	"github.com/coredns/coredns/plugin/etcd/msg"
-	"github.com/openshift-metalkube/coredns-machine-kubernetes/object"
 	"github.com/coredns/coredns/plugin/pkg/dnsutil"
 	"github.com/coredns/coredns/request"
+	"github.com/openshift-metal3/coredns-machine-kubernetes/object"
 
 	"github.com/miekg/dns"
 )
